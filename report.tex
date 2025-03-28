@@ -1,0 +1,202 @@
+\documentclass{article}
+\usepackage{graphicx}
+\usepackage{kotex} 
+\usepackage{amsmath} 
+\usepackage{algorithm} 
+\usepackage{algorithmic}
+\usepackage{cite} 
+\usepackage{hyperref}
+\usepackage{float}
+
+\title{GA solves 3D sudoku}
+\author{Jae-Hyun Baek, Byung-Sun Won}
+\date{March 2025}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+
+\section{Methods}
+
+We will evaluate performance by measuring the number of generations required to reach a solution across multiple runs within a limited generation count.
+
+The fitness value enables comparison between different individuals to assess their relative effectiveness. In our approach, a fitness of 1 represents a single chromosome encoding a complete solution. This is calculated as follows:
+
+\begin{equation}
+\text{fitness}(x_i) = \frac{1}{K}\sum_{k=1}^K \frac{|S_k|}{n}
+\end{equation}
+
+where K represents the total number of constraints, $|S_k|$ denotes the count of unique numbers in the kth constraint, and n is the dimension of the Sudoku puzzle. For an $n \times n \times n$ 3D Sudoku, the constraints are:
+
+\begin{itemize}
+\item $n^2$ rows (for each depth and height)
+\item $n^2$ columns (for each depth and width) 
+\item $n^2$ depths (for each height and width)
+\item $n^2$ vertical sub-cubes (xz plane)
+\item $n^2$ lateral sub-cubes (yz plane)
+\end{itemize}
+
+Thus, the total number of constraints K equals $5n^2$. The count of unique numbers in each constraint ranges from a minimum of 1 to a maximum of n. In a perfect solution, all constraints contain n unique numbers, resulting in a fitness of 1.
+
+For instance, in a $4 \times 4 \times 4$ Sudoku, there are 80 total constraints, each requiring 4 unique numbers. This three-dimensional extension introduces more complex constraints compared to traditional 2D Sudoku, making the solution space significantly more challenging.
+
+Metaheuristic algorithms represent sophisticated optimization techniques that encompass higher-level concepts of heuristic methodologies based on various optimization algorithms. These algorithms generally demonstrate broad applicability across different problem domains and prove particularly effective in handling complex problems with diverse constraints. Metaheuristic approaches focus on exploring the problem space using various heuristic techniques to discover optimal or near-optimal solutions.
+
+Algorithm \ref{alg:ga-ucb} presents the pseudocode for a classical GA designed for solving 3D Sudoku. The algorithm begins with an initialization phase that generates candidate solutions. The fitness of each candidate solution is computed based on 3D Sudoku rules. The GA evolves these candidate solutions through various stages.
+
+\begin{algorithm}
+\caption{GA for Traditional 2D Sudoku}
+\label{alg:ga-2d}
+\begin{algorithmic}
+\REQUIRE $N$ (grid size), $p$ (population size), $g$ (generations), $c_{rate}$ (crossover rate), $m_{rate}$ (mutation rate)
+\ENSURE Best solution found
+\STATE Initialize population ensuring valid NxN sub-blocks with distinct numbers
+\STATE $\text{best\_fitness} \leftarrow 0$
+\FOR{$i = 1$ to $g$}
+\STATE Calculate fitness for each individual $x_i$:
+\STATE $\text{fitness}(x_i) = \frac{1}{2N^2}\left(\sum_{n=1}^{N} c_n + \sum_{n=1}^{N} r_n\right)$
+\STATE where:
+\STATE $c_n$: count of distinct numbers in n-th column
+\STATE $r_n$: count of distinct numbers in n-th row
+\IF{$\text{best\_fitness} = 1.0$}
+\STATE \textbf{return} best solution
+\ENDIF
+\STATE Select parents using tournament selection
+\IF{$random(0,1) < c_{rate}$}
+\STATE Generate offspring through sub-block crossover
+\FOR{each offspring}
+\IF{$random(0,1) < m_{rate}$}
+\STATE Apply mutation within random sub-block preserving constraints
+\ENDIF
+\ENDFOR
+\ENDIF
+\STATE Update population with offspring
+\STATE Update $\text{best\_fitness}$ if improved
+\ENDFOR
+\STATE \textbf{return} best solution found
+\end{algorithmic}
+\end{algorithm}
+\begin{algorithm}
+\caption{GA-UCB for N\times N\times N Sudoku}
+\label{alg:ga-ucb}
+\begin{algorithmic}
+\REQUIRE $N$ (dimension where $N=n^2$), $p$ (population size), $T$ (iterations), $c$ (exploration constant), $c_{rate}$ (crossover rate), $m_{rate}$ (mutation rate), $g$ (generations)
+\ENSURE Best solution found
+\STATE Initialize population with valid sub-cube constraints of size $n \times n \times n$
+\STATE Initialize Q-values to zero for all individuals
+\STATE $\text{best\_fitness} \leftarrow 0$, $\text{stagnation\_count} \leftarrow 0$
+\WHILE{$\text{best\_fitness} < 1.0$}
+\STATE Evaluate fitness using $\frac{1}{5N}\sum_{k=1}^{5N} \frac{|S_k|}{N}$
+\STATE Calculate UCB values for all individuals
+\STATE Select top $k$ individuals based on UCB values
+\STATE Generate offspring population of size $p-k$
+\FOR{each new offspring}
+\STATE Select two parents using UCB-based selection
+\IF{$random(0,1) < c_{rate}$}
+\STATE Perform sub-cube crossover between parents
+\IF{$random(0,1) < m_{rate}$}
+\STATE Apply mutation within random sub-cube preserving fixed numbers
+\ENDIF
+\ELSE
+\STATE Copy randomly selected parent to offspring
+\ENDIF
+\ENDFOR
+\STATE Combine top $k$ parents and offspring
+\STATE Update Q-values based on offspring fitness
+\IF{fitness unchanged for 100 generations}
+\STATE Reinitialize population
+\STATE $\text{stagnation\_count} \leftarrow 0$
+\ENDIF
+\ENDWHILE
+\STATE \textbf{return} best solution found
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}
+    \caption{Generalized GA for nxmxr 3D Sudoku}
+    \label{alg:ga-general}
+    \begin{algorithmic}[1]
+    \REQUIRE $n,m,r$ (dimensions), $p$ (population size), $g$ (generations), $c_{rate}$ (crossover rate), $m_{rate}$ (mutation rate)
+    \ENSURE Best solution found
+    \STATE Initialize population ensuring valid mxnr sub-blocks with distinct numbers
+    \STATE $\text{best\_fitness} \leftarrow 0$
+    \FOR{$i = 1$ to $g$}
+    \STATE Calculate fitness for each individual $x_i$:
+    \STATE $\text{fitness}(x_i) = \frac{1}{2(nmr)^2}\left(\sum_{k=1}^{mr} p_k + \sum_{k=1}^{nr} q_k\right)$
+    \STATE where:
+    \STATE $p_k$: count of distinct numbers in k-th plane of n(mxr)
+    \STATE $q_k$: count of distinct numbers in k-th plane of m(rxn)
+    \IF{$\text{best\_fitness} = 1.0$}
+    \STATE \textbf{return} best solution
+    \ENDIF
+    \STATE Select parents using tournament selection
+    \FOR{each offspring pair}
+    \IF{$random(0,1) < c_{rate}$}
+    \STATE Generate offspring through sub-block crossover
+    \FOR{each offspring}
+    \IF{$random(0,1) < m_{rate}$}
+    \STATE Apply mutation within random sub-block preserving constraints
+    \ENDIF
+    \ENDFOR
+    \ELSE
+    \STATE Copy parents to offspring
+    \ENDIF
+    \ENDFOR
+    \STATE Replace population with offspring
+    \IF{fitness unchanged for 10 generations}
+    \STATE Reinitialize population
+    \STATE $\text{stagnation\_count} \leftarrow 0$
+    \ENDIF
+    \ENDFOR
+    \STATE \textbf{return} best solution found
+    \end{algorithmic}
+\end{algorithm}
+
+\newpage
+
+\subsection{Initialization}
+
+At the starting point, fill in the cells with random numbers where no values are given, ensuring that no identical numbers appear more than once in any subblock. Applying this process to all sub-blocks ensures that the Sudoku rule is satisfied, which states, 'numbers from 1 to 9 appear only once in each sub-block.' Consequently, this leads to a reduction in the number of constraints from three to two in the Sudoku rules.
+
+\subsection{Selection based on MAB algorithm}
+
+The agent in the MAB corresponds to the selection operator in GA. A slot with one arm represents a candidate solution $x_i$ belonging to the population set $P=\{x_1, x_2, \ldots, x_p\}$. The agent selects candidate solutions and receives rewards of either 0 or 1. A reward of 0 indicates a loss, while a reward of 1 indicates a win. In other words, the rewards represent the probability of winning. Using the UCB algorithm, the agent calculates rewards to learn which candidate solutions are likely to produce good offspring when crossed. In the initial stages of learning, the reward distribution is initialized, representing the distribution of initial expected rewards for each candidate solution. The selected candidate solutions are crossed, and the fitness of the resulting offspring is measured and recorded. In this context, the fitness is considered as the reward, and the formula is as follows:
+
+\begin{equation}
+\text{reward}(x_i(t)) = \begin{cases}
+\text{fitness}(y(i,j)), & \text{if } \text{fit}(y) > \text{fit}(x) \\
+0, & \text{otherwise}
+\end{cases}
+\end{equation}
+
+where $\text{fit}(y) = \text{fitness}(y(i,j))$, $\text{fit}(x) = \text{fitness}(x_j(t))$. This approach employs UCB to estimate the rewards and guide the selection of candidate solutions for crossover in GA. The reward received by candidate solution $x_i$ with the highest UCB value at time $t$, denoted as $\text{reward}(x_i(t))$, is defined by comparing the fitness of the offspring $y(i,j)$ generated by crossing the $i$th individual $x_i$ with $x_j$ from the population set $P$ using Equation (2) with the fitness of another candidate solution $x_j$ involved in the crossover. The reward is assigned only if the fitness of the offspring is greater than the fitness of the other candidate solution $x_j$, as determined by Equation (2).
+
+In this context, the relative candidate solution $x_j$ represents an individual randomly selected from among those candidate solutions, obtains rewards following the same rules as $x_i$.
+
+In each learning iteration, the agent selects and executes candidate solutions based on the UCB value defined in Equation (1). It then updates the reward distribution using the collected feedback. This process is repeated multiple times, allowing the agent to choose actions and adapt the reward distribution to fitness. By employing the UCB algorithm, the agent generates opportunities for exploration, even for candidate solutions with initially low fitness. As the learning progresses, the number of times each arm is selected is reflected in the UCB value, guiding the selection operator to leverage promising candidate solutions.
+
+Through this iterative process, the agent learns how to select candidate solutions with high potential and adjusts the reward distribution. Operating under the assumption that the agent does not know the reward function, it sets up a reward expression to aim for the generation of offspring with high fitness through crossovers. As the fitness of the offspring increases, the agent learns to favor candidate solutions with higher fitness.
+
+\subsection{Sub-cube Crossover}
+
+The crossover operation emphasizes preserving sub-cube integrity during the exploration process. When generating offspring from two parents, each parent's sub-cube is treated as a single genetic unit. In 4x4x4 3D Sudoku, consisting of eight 2x2x2 sub-cubes, crossover points are strictly restricted to occur only between sub-cubes. Offspring are generated by selecting sub-cubes from either parent for each position, with validation ensuring the selected sub-cube satisfies all constraints. If a selected sub-cube violates constraints, the algorithm either selects the corresponding sub-cube from the alternate parent or generates a new valid sub-cube configuration.
+
+\subsection{Sub-cube Mutation}
+
+Mutation operations are performed within individual sub-cubes according to a predefined mutation rate. The process involves selecting two random positions within a sub-cube and exchanging their numerical values. This operation maintains the integrity of the sub-cube structure by preventing duplicate numbers while preserving initially fixed values. In the context of 4x4x4 3D Sudoku, each 2x2x2 sub-cube must contain numbers 1 through 4 exactly once. The mutation mechanism exclusively operates on non-fixed positions, ensuring the preservation of predetermined values.
+
+Through iterative selection, crossover, and mutation processes, the genetic pool undergoes continuous evolution, fostering the emergence of more robust solutions in a competitive environment. The 3D Sudoku case presents a particularly intricate challenge, requiring simultaneous satisfaction of sub-cube constraints while maintaining row, column, and depth-wise constraints in three-dimensional space.
+
+\subsection{Re-initialization}
+
+In combinatorial problems, the optimization process often gets stuck, and it is more efficient to restart with a new population rather than continuing from the stuck point. Mantere proposed that when the algorithm gets stuck, the population should be reinitialized. The paper argues that if the population reaches a certain fitness value after one optimization cycle, the algorithm should continue for additional time before reinitializing. Moreover, if re-initialization is not used, a much larger population size would be necessary. It also suggests periodically adjusting the fitness function to add penalties under certain conditions. In a comparable fashion, GA-UCB incorporates a reinitialization process under specific conditions to prevent converging to local optima. Specifically, if the same fitness value is repeated consecutively more than ten times within the current population in each generation, a population reinitialization is triggered.
+
+To evaluate the performance of the proposed re-initialization, we conducted experiments comparing GA-UCB with re-initialization and GA-UCB without re-initialization on various Sudoku puzzles. Figure shows the results of comparing the two algorithms on Sudoku puzzles with 36, 30, 26, and 22 given numbers, respectively. (a)-(c) represent 66 Sudoku puzzles from www.sudoku.com used in the experiments. These puzzles include six instances each for categories with given numbers ranging from 26 to 36.
+
+In (a), both algorithms converged to the global optimum without re-initialization, showing similar evolutionary patterns. In (b), the fitness value, around 0.95, converged to the global optimum after re-initialization, demonstrating that the former completed in 793 generations and 112.7 seconds, whereas the latter took 1,358 generations and 208.8 seconds. In (c), the latter failed to reach the global optimum within 10,000 generations, while the former reached the global optimum in 7,038 generations and 1,352.7 seconds after six re-initializations.
+
+When the 66 different Sudoku puzzles were compared with ten repetitions each, the former consistently demonstrated faster convergence across all puzzles, confirming that the proposed strategy significantly enhances the algorithm's convergence to the global optimum. However, in (d), neither algorithm reached the global optimum within 10,000 generations. As the number of given numbers decreases, there is a tendency for the frequency of re-initializations to increase. This suggests that the algorithm is more frequently encountering points of stagnation or getting trapped in local optima, thereby providing more opportunities to explore new candidate solutions. Consequently, this means that the algorithm is more often recognizing and attempting to resolve its stagnation state. This case will be further discussed in Section, where we address the limitations of GA-UCB on extremely difficult Sudoku puzzles.
+
+\end{document}
